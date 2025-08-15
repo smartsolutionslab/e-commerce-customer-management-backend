@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  customer-management-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_CustomerManagement;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Authentication__RequireHttpsMetadata=false
+    depends_on:
+      - sql-server
+      - keycloak
+    networks:
+      - ecommerce-network
+
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Password123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    networks:
+      - ecommerce-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123
+      - KC_DB=dev-file
+    ports:
+      - "8080:8080"
+    command: start-dev
+    networks:
+      - ecommerce-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ecommerce-network
+
+volumes:
+  sql-data:
+  redis-data:
+
+networks:
+  ecommerce-network:
+    driver: bridge
