@@ -1,7 +1,7 @@
-using Asp.Versioning;
 using E_Commerce.CustomerManagement.Application.Commands;
 using E_Commerce.CustomerManagement.Application.Queries;
-using E_Commerce.CustomerManagement.Application.DTOs;
+using E_Commerce.CustomerManagement.Domain.ValueObjects;
+using E_Commerce.Common.Domain.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -93,7 +93,6 @@ public static class CustomerEndpoints
             request.Email,
             request.FirstName,
             request.LastName,
-            request.MiddleName,
             request.DateOfBirth);
 
         var result = await mediator.Send(command);
@@ -110,11 +109,9 @@ public static class CustomerEndpoints
     {
         var command = new UpdateCustomerCommand(
             CustomerId.Create(id),
-            request.Email,
             request.FirstName,
             request.LastName,
-            request.MiddleName,
-            request.PhoneNumber);
+            request.DateOfBirth);
 
         var result = await mediator.Send(command);
 
@@ -156,7 +153,6 @@ public static class CustomerEndpoints
             CustomerId.Create(id),
             request.Street,
             request.City,
-            request.State,
             request.PostalCode,
             request.Country,
             request.IsDefault);

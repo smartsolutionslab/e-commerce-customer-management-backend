@@ -1,6 +1,7 @@
 using E_Commerce.Common.Domain.ValueObjects;
 using E_Commerce.CustomerManagement.Domain.Entities;
 using E_Commerce.CustomerManagement.Domain.ValueObjects;
+using E_Commerce.CustomerManagement.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,60 +27,88 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
                 value => TenantId.Create(value))
             .IsRequired();
 
-        builder.OwnsOne(c => c.Email, email =>
-        {
-            email.Property(e => e.Value)
-                .HasColumnName("Email")
-                .HasMaxLength(255)
-                .IsRequired();
-        });
+        builder.Property(c => c.Email)
+            .HasConversion(
+                email => email.Value,
+                value => Email.Create(value))
+            .HasMaxLength(255)
+            .IsRequired();
 
-        builder.OwnsOne(c => c.FullName, fullName =>
+        builder.OwnsOne(c => c.FullName, fn =>
         {
-            fullName.Property(fn => fn.FirstName)
+            fn.Property(p => p.FirstName)
                 .HasColumnName("FirstName")
                 .HasMaxLength(100)
                 .IsRequired();
 
-            fullName.Property(fn => fn.LastName)
+            fn.Property(p => p.LastName)
                 .HasColumnName("LastName")
                 .HasMaxLength(100)
                 .IsRequired();
 
-            fullName.Property(fn => fn.MiddleName)
+            fn.Property(p => p.MiddleName)
                 .HasColumnName("MiddleName")
                 .HasMaxLength(100);
         });
 
-        builder.OwnsOne(c => c.PhoneNumber, phoneNumber =>
-        {
-            phoneNumber.Property(pn => pn!.Value)
-                .HasColumnName("PhoneNumber")
-                .HasMaxLength(20);
-        });
+        builder.Property(c => c.PhoneNumber)
+            .HasConversion(
+                phone => phone != null ? phone.Value : null,
+                value => value != null ? PhoneNumber.Create(value) : null)
+            .HasMaxLength(20);
 
-        builder.Property(c => c.DateOfBirth)
-            .HasColumnType("date")
-            .IsRequired();
+        builder.Property(c => c.DateOfBirth);
 
         builder.Property(c => c.Status)
-            .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasConversion<int>();
+
+        builder.Property(c => c.IsEmailVerified)
             .IsRequired();
+
+        builder.Property(c => c.LastLoginAt);
 
         builder.Property(c => c.CreatedAt)
             .IsRequired();
 
         builder.Property(c => c.UpdatedAt);
 
-        builder.HasMany(c => c.Addresses)
-            .WithOne()
-            .HasForeignKey("CustomerId")
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.OwnsMany(c => c.Addresses, a =>
+        {
+            a.ToTable("CustomerAddresses");
+            a.WithOwner().HasForeignKey("CustomerId");
+            
+            a.Property(addr => addr.Id)
+                .HasConversion(
+                    id => id.Value,
+                    value => AddressId.Create(value))
+                .ValueGeneratedNever();
+            
+            a.HasKey(addr => addr.Id);
+            
+            // Direct address properties instead of nested OwnsOne
+            a.Property(addr => addr.Street)
+                .HasMaxLength(200)
+                .IsRequired();
+            
+            a.Property(addr => addr.City)
+                .HasMaxLength(100)
+                .IsRequired();
+            
+            a.Property(addr => addr.PostalCode)
+                .HasMaxLength(20)
+                .IsRequired();
+            
+            a.Property(addr => addr.Country)
+                .HasMaxLength(100)
+                .IsRequired();
+            
+            a.Property(addr => addr.IsDefault);
+            a.Property(addr => addr.CreatedAt);
+        });
 
-        builder.HasIndex(c => new { c.TenantId, c.Email.Value })
+        builder.HasIndex(c => c.Email)
             .IsUnique()
-            .HasDatabaseName("IX_Customers_TenantId_Email");
+            .HasDatabaseName("IX_Customers_Email");
 
         builder.HasIndex(c => c.TenantId)
             .HasDatabaseName("IX_Customers_TenantId");

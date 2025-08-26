@@ -6,7 +6,7 @@ public record Email
 {
     private static readonly Regex EmailRegex = new(
         @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public string Value { get; }
 
@@ -20,15 +20,15 @@ public record Email
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty", nameof(email));
 
-        email = email.Trim().ToLowerInvariant();
+        var trimmedEmail = email.Trim().ToLowerInvariant();
 
-        if (!EmailRegex.IsMatch(email))
+        if (!EmailRegex.IsMatch(trimmedEmail))
             throw new ArgumentException("Invalid email format", nameof(email));
 
-        return new Email(email);
+        return new Email(trimmedEmail);
     }
 
-    public static implicit operator string(Email email) => email.Value;
-
     public override string ToString() => Value;
+
+    public static implicit operator string(Email email) => email.Value;
 }

@@ -8,9 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="E-Commerce.Common.Api" Version="1.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
-    <PackageReference Include="Asp.Versioning.Http" Version="8.0.0" />
+    <PackageReference Include="E-Commerce.Common.Api" Version="1.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
