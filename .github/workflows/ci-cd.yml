@@ -19,18 +19,15 @@ jobs:
       sql-server:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          SA_PASSWORD: 'YourStrong!Passw0rd'
-          ACCEPT_EULA: 'Y'
-          MSSQL_PID: 'Express'
+          SA_PASSWORD: Password123!
+          ACCEPT_EULA: Y
         ports:
           - 1433:1433
         options: >-
-          --name sqlserver
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong!Passw0rd -C -Q 'SELECT 1'"
-          --health-interval=30s
-          --health-timeout=10s
-          --health-retries=5
-          --health-start-period=30s
+          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Password123! -Q 'SELECT 1'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
     - uses: actions/checkout@v4
@@ -40,16 +37,9 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Wait for SQL Server to be ready
+    - name: Add GitHub Packages source
       run: |
-        for i in {1..30}; do
-          if docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -C -Q "SELECT 1" > /dev/null 2>&1; then
-            echo "SQL Server is ready"
-            break
-          fi
-          echo "Waiting for SQL Server... ($i/30)"
-          sleep 2
-        done
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -68,7 +58,7 @@ jobs:
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
       env:
-        ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ECommerce_CustomerManagement_Test;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true;Encrypt=false"
+        ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ECommerce_CustomerManagement_Test;User Id=sa;Password=Password123!;TrustServerCertificate=true"
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
