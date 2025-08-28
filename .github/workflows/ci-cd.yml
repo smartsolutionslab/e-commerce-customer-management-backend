@@ -14,8 +14,6 @@ env:
   DOTNET_VERSION: '9.0.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # Einheitliche Variable für Container Image Basis
-  IMAGE_REF: ${{ env.REGISTRY }}/${{ github.repository }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
