@@ -19,18 +19,16 @@ jobs:
       sql-server:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: "YourStrong!Passw0rd"
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Password123!
         ports:
           - 1433:1433
+        # Healthcheck (Warten bis SQL Server ansprechbar ist)
         options: >-
-          --health-cmd="curl -f http://localhost:1433 || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-          --user mssql
-          --name sql-server
-          --mount type=tmpfs,destination=/var/opt/mssql
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P Password123! -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
 
     steps:
     - uses: actions/checkout@v4
@@ -58,6 +56,13 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
+    - name: Warten (Fallback, falls Healthcheck nicht reicht)
+        run: |
+          echo "Warte auf SQL Server..."
+          for i in {1..30}; do
+            /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "${{ secrets.MSSQL_SA_PASSWORD }}" -Q "SELECT 1" && break
+            sleep 2
+          done
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
       env:
