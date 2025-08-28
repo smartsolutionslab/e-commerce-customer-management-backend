@@ -1,11 +1,11 @@
-using E_Commerce.Common.Infrastructure.Messaging;
+using E_Commerce.Common.Application.Services;
+using E_Commerce.Common.Messaging.Abstractions;
 using E_Commerce.CustomerManagement.Domain.Events;
-using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace E_Commerce.CustomerManagement.Infrastructure.EventHandlers;
 
-public class CustomerCreatedEventHandler : INotificationHandler<CustomerCreatedEvent>
+public class CustomerCreatedEventHandler : IDomainEventHandler<CustomerCreatedEvent>
 {
     private readonly IMessageBroker _messageBroker;
     private readonly ILogger<CustomerCreatedEventHandler> _logger;
@@ -16,7 +16,7 @@ public class CustomerCreatedEventHandler : INotificationHandler<CustomerCreatedE
         _logger = logger;
     }
 
-    public async Task Handle(CustomerCreatedEvent notification, CancellationToken cancellationToken)
+    public async Task HandleAsync(CustomerCreatedEvent notification, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Publishing customer created event for customer {CustomerId}", notification.CustomerId);
 
@@ -30,10 +30,3 @@ public class CustomerCreatedEventHandler : INotificationHandler<CustomerCreatedE
         await _messageBroker.PublishAsync(integrationEvent, "integration.events", "customer.created", cancellationToken);
     }
 }
-
-public record CustomerCreatedIntegrationEvent(
-    Guid CustomerId,
-    Guid TenantId,
-    string Email,
-    string FirstName,
-    string LastName);

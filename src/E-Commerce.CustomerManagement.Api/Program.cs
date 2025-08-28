@@ -1,23 +1,16 @@
 using E_Commerce.Common.Api.Extensions;
-using E_Commerce.Common.Api.Middleware;
-using E_Commerce.Common.Infrastructure.Extensions;
+using E_Commerce.Common.Persistence.Extensions;
 using E_Commerce.CustomerManagement.Api.Endpoints;
+using E_Commerce.CustomerManagement.Api.Middleware;
 using E_Commerce.CustomerManagement.Infrastructure.Extensions;
+using E_Commerce.CustomerManagement.Infrastructure.Persistence;
+using CommonApi = E_Commerce.Common.Api.Extensions.ServiceCollectionExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Common services
-builder.Services.AddCommonServices();
-builder.Services.AddCommonInfrastructure(builder.Configuration);
-builder.Services.AddMultiTenancy();
-builder.Services.AddApiVersioning();
-builder.Services.AddCorsPolicies();
+CommonApi.AddApiVersioning(builder.Services);
 
-// Customer management specific services
 builder.Services.AddCustomerManagementInfrastructure(builder.Configuration);
-
-// Health checks
-builder.Services.AddDatabaseHealthCheck<CustomerDbContext>();
 
 // API documentation
 builder.Services.AddSwaggerWithVersioning();
@@ -34,21 +27,22 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Security and middleware
-app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontends");
 
-// Authentication
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<JwtAuthenticationMiddleware>();
+// Custom middleware
+app.UseMiddleware<TenantMiddleware>();
 
 // Add customer endpoints
 app.MapCustomerEndpoints();
 
 // Health check
 app.MapHealthChecks("/health");
+
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<CustomerDbContext>();
+    context.Database.EnsureCreated();
+}
 
 app.Run();

@@ -21,18 +21,17 @@ public record FullName
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name cannot be empty", nameof(lastName));
 
-        return new FullName(
-            firstName.Trim(),
-            lastName.Trim(),
-            string.IsNullOrWhiteSpace(middleName) ? null : middleName.Trim());
+        return new FullName(firstName.Trim(), lastName.Trim(), middleName?.Trim());
     }
 
     public string GetFullName()
     {
-        return string.IsNullOrEmpty(MiddleName)
+        return string.IsNullOrWhiteSpace(MiddleName)
             ? $"{FirstName} {LastName}"
             : $"{FirstName} {MiddleName} {LastName}";
     }
 
     public override string ToString() => GetFullName();
+
+    public static implicit operator string(FullName fullName) => fullName.ToString();
 }

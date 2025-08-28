@@ -1,31 +1,21 @@
-using E_Commerce.Common.Domain.Primitives;
-using E_Commerce.Common.Domain.ValueObjects;
-
 namespace E_Commerce.CustomerManagement.Domain.ValueObjects;
 
-public class Address : Entity<AddressId>
+public record Address
 {
-    public string Street { get; private set; }
-    public string City { get; private set; }
-    public string State { get; private set; }
-    public string PostalCode { get; private set; }
-    public string Country { get; private set; }
-    public bool IsDefault { get; private set; }
+    public string Street { get; }
+    public string City { get; }
+    public string PostalCode { get; }
+    public string Country { get; }
 
-    private Address(AddressId id, TenantId tenantId, string street, string city, string state, string postalCode, string country, bool isDefault = false)
-        : base(id, tenantId)
+    private Address(string street, string city, string postalCode, string country)
     {
         Street = street;
         City = city;
-        State = state;
         PostalCode = postalCode;
         Country = country;
-        IsDefault = isDefault;
     }
 
-    private Address() : base() { } // For EF
-
-    public static Address Create(TenantId tenantId, string street, string city, string state, string postalCode, string country, bool isDefault = false)
+    public static Address Create(string street, string city, string postalCode, string country)
     {
         if (string.IsNullOrWhiteSpace(street))
             throw new ArgumentException("Street cannot be empty", nameof(street));
@@ -33,37 +23,14 @@ public class Address : Entity<AddressId>
         if (string.IsNullOrWhiteSpace(city))
             throw new ArgumentException("City cannot be empty", nameof(city));
 
-        return new Address(AddressId.NewId(), tenantId, street.Trim(), city.Trim(), state.Trim(), postalCode.Trim(), country.Trim(), isDefault);
+        if (string.IsNullOrWhiteSpace(postalCode))
+            throw new ArgumentException("Postal code cannot be empty", nameof(postalCode));
+
+        if (string.IsNullOrWhiteSpace(country))
+            throw new ArgumentException("Country cannot be empty", nameof(country));
+
+        return new Address(street.Trim(), city.Trim(), postalCode.Trim(), country.Trim());
     }
 
-    public void SetAsDefault()
-    {
-        IsDefault = true;
-        MarkAsUpdated();
-    }
-
-    public void SetAsNonDefault()
-    {
-        IsDefault = false;
-        MarkAsUpdated();
-    }
-}
-
-public record AddressId
-{
-    public Guid Value { get; }
-
-    private AddressId(Guid value)
-    {
-        if (value == Guid.Empty)
-            throw new ArgumentException("AddressId cannot be empty", nameof(value));
-        
-        Value = value;
-    }
-
-    public static AddressId Create(Guid value) => new(value);
-    public static AddressId NewId() => new(Guid.NewGuid());
-
-    public static implicit operator Guid(AddressId addressId) => addressId.Value;
-    public override string ToString() => Value.ToString();
+    public override string ToString() => $"{Street}, {City} {PostalCode}, {Country}";
 }

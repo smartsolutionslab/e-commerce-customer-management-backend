@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="E-Commerce.Common.Domain" Version="1.0.0" />
+    <PackageReference Include="E-Commerce.Common.Domain" Version="1.0.4" />
   </ItemGroup>
 
 </Project>

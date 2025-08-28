@@ -2,20 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>e-commerce-customer-management</UserSecretsId>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="E-Commerce.Common.Api" Version="1.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
-    <PackageReference Include="Asp.Versioning.Http" Version="8.0.0" />
+    <PackageReference Include="e-commerce.common.api" Version="1.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\E-Commerce.CustomerManagement.Application\E-Commerce.CustomerManagement.Application.csproj" />
-    <ProjectReference Include="..\E-Commerce.CustomerManagement.Infrastructure\E-Commerce.CustomerManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\E-Commerce.CustomerManagement.Infrastructure\E-Commerce.CustomerManagement.Infrastructure.csproj" /> 
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using E_Commerce.Common.Application.Abstractions;
 using E_Commerce.Common.Domain.ValueObjects;
+using E_Commerce.CustomerManagement.Domain.ValueObjects;
 
 namespace E_Commerce.CustomerManagement.Application.Commands;
 
@@ -8,5 +9,4 @@ public record CreateCustomerCommand(
     string Email,
     string FirstName,
     string LastName,
-    string? MiddleName,
-    DateTime DateOfBirth) : ICommand<CustomerId>;
+    DateTime? DateOfBirth = null) : ICommand<CustomerId>;
