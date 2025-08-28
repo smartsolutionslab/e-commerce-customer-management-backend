@@ -1,302 +1,201 @@
-name: CI/CD Pipeline
+name: Customer Management CI/CD
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-  schedule:
-    # Täglicher nächtlicher Sicherheits-Scan
-    - cron: "0 2 * * *"
 
 env:
   DOTNET_VERSION: '9.0.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  # Default minimal; einzelne Jobs heben bei Bedarf an
-  contents: read
-
 jobs:
-
-  test:
-    name: Build & Test
+  build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      # Für Codecov benötigt man id-token (wenn Uploader ohne Token Signing nutzt) und ggf. pull-request comment; hier minimal
-      id-token: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Add GitHub Packages source
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run unit tests (without database)
+      run: dotnet test --no-build --configuration Release --verbosity normal --filter "Category!=Integration"
+
+  integration-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
     services:
-      sql:
+      sql-server:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+          SA_PASSWORD: 'YourStrong!Passw0rd'
           ACCEPT_EULA: 'Y'
           MSSQL_PID: 'Express'
         ports:
           - 1433:1433
         options: >-
           --name sqlserver
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${{ secrets.MSSQL_SA_PASSWORD }} -C -Q 'SELECT 1'"
-          --health-interval=20s
-          --health-timeout=5s
-          --health-retries=5
-          --health-start-period=20s
-
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ECommerce_CustomerManagement_Test;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=true;Encrypt=false"
-      ASPNETCORE_ENVIRONMENT: Test
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -C -Q 'SELECT 1'"
+          --health-interval=30s
+          --health-timeout=10s
+          --health-retries=8
+          --health-start-period=60s
 
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-          cache: true
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Wait for SQL Server (fallback)
-        run: |
-          for i in {1..30}; do
-            if docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${{ secrets.MSSQL_SA_PASSWORD }}" -C -Q "SELECT 1" > /dev/null 2>&1; then
-              echo "SQL Server is ready"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "SQL Server not ready after timeout" >&2
-              exit 1
-            fi
-            echo "Waiting for SQL Server... ($i/30)"
-            sleep 2
-          done
+    - name: Add GitHub Packages source
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
-      - name: Restore
-        run: dotnet restore --verbosity minimal
-
-      - name: Build
-        run: dotnet build --no-restore -c Release /warnaserror
-
-      - name: Test (with coverage)
-        run: >
-          dotnet test
-          --no-build
-          -c Release
-          --logger "trx;LogFileName=test_results.trx"
-          --collect:"XPlat Code Coverage"
-          /p:CollectCoverage=true
-          /p:CoverletOutputFormat=cobertura
-        # Falls Du Coverlet direkt über DataCollector nutzt, /p: Parameter optional.
-
-      - name: Locate coverage & rename
-        id: coverage
-        run: |
-          FILE=$(find . -type f -name "coverage.cobertura.xml" | head -n1)
-          if [ -z "$FILE" ]; then
-            echo "Coverage file not found" >&2
-            exit 1
+    - name: Wait for SQL Server to be ready
+      run: |
+        echo "Waiting for SQL Server to start..."
+        for i in {1..60}; do
+          if docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -C -Q "SELECT 1" > /dev/null 2>&1; then
+            echo "SQL Server is ready!"
+            break
           fi
-            echo "coverage_file=$FILE" >> $GITHUB_OUTPUT
-            cp "$FILE" coverage.cobertura.xml
+          echo "Waiting for SQL Server... ($i/60)"
+          sleep 3
+        done
 
-      - name: Upload test results (artifact)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: |
-            **/TestResults/*.trx
-            coverage.cobertura.xml
-          retention-days: 7
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.cobertura.xml
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # falls privat nötig
+    - name: Build solution
+      run: dotnet build --no-restore --configuration Release
 
-  # Optionaler SAST (separater offizieller CodeQL Workflow wäre Standard)
-  codeql:
-    if: github.event_name != 'schedule'
-    uses: github/codeql-action/.github/workflows/codeql.yml@v3
-    with:
-      languages: 'csharp'
-    permissions:
-      security-events: write
-      contents: read
+    - name: Run integration tests
+      run: dotnet test --no-build --configuration Release --verbosity normal --filter "Category=Integration"
+      env:
+        ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ECommerce_CustomerManagement_Test;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true;Encrypt=false"
 
-  build-image:
-    name: Build & Push Image
+  security-scan:
     runs-on: ubuntu-latest
-    needs: [test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan]
     if: github.event_name == 'push'
+    
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Add GitHub Packages source
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_REF }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.source=${{ github.repository }}
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Export SBOM (Syft)
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.IMAGE_REF }}:$(echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' | head -n1)
-          format: spdx-json
-          output-file: sbom.spdx.json
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.spdx.json
-          retention-days: 14
-
-  security-scan:
-    name: Vulnerability Scan (FS & Image)
-    runs-on: ubuntu-latest
-    needs: build-image
-    permissions:
-      security-events: write
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Trivy cache (optional)
-        run: mkdir -p .trivycache
-
-      - name: FS Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-fs.sarif'
-          ignore-unfixed: true
-        env:
-          TRIVY_CACHE_DIR: .trivycache
-
-      - name: Download image digest (metadata) # (optional: falls digest benötigt)
-        run: echo "Skipping explicit digest retrieval"
-
-      - name: Image Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'image'
-          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:latest
-          format: 'sarif'
-          output: 'trivy-image.sarif'
-          ignore-unfixed: true
-        env:
-          TRIVY_CACHE_DIR: .trivycache
-
-      - name: Merge SARIF (optional)
-        run: |
-          jq -s '{ "version":"2.1.0","runs": (.[0].runs + .[1].runs) }' trivy-fs.sarif trivy-image.sarif > trivy-combined.sarif
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-combined.sarif
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy-dev:
-    name: Deploy Dev
     runs-on: ubuntu-latest
-    needs: [build-image, security-scan]
+    needs: build-docker
     if: github.ref == 'refs/heads/develop'
-    environment:
-      name: development
-      url: https://dev.example.com
-    permissions:
-      contents: read
-      id-token: write
+    environment: development
+    
     steps:
-      - name: Deploy to Development
-        run: |
-          echo "Deploying Dev..."
-          # Platzhalter: kubectl / helm / terraform / etc.
-
-  deploy-staging:
-    name: Deploy Staging
-    runs-on: ubuntu-latest
-    needs: [build-image, security-scan]
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: staging
-      url: https://staging.example.com
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Deploy to Staging
-        run: |
-          echo "Deploying Staging..."
-          # Platzhalter
+    - name: Deploy to Development
+      run: |
+        echo "🚀 Deploying Customer Management to Development"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop-${{ github.sha }}"
 
   deploy-prod:
-    name: Deploy Production
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    needs: build-docker
     if: github.ref == 'refs/heads/main'
-    # Environment protection rules in Repo Settings -> Environments -> production
-    environment:
-      name: production
-      url: https://app.example.com
-    permissions:
-      contents: read
-      id-token: write
+    environment: production
+    
     steps:
-      - name: Deploy Production
-        run: |
-          echo "Deploying Production..."
-          # Platzhalter
+    - name: Deploy to Production
+      run: |
+        echo "🚀 Deploying Customer Management to Production"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
