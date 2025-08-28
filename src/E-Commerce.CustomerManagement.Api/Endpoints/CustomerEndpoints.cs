@@ -1,8 +1,10 @@
+using Asp.Versioning;
 using E_Commerce.CustomerManagement.Application.Commands;
 using E_Commerce.CustomerManagement.Application.Queries;
+using E_Commerce.CustomerManagement.Application.DTOs;
 using E_Commerce.CustomerManagement.Domain.ValueObjects;
 using E_Commerce.Common.Domain.ValueObjects;
-using MediatR;
+using E_Commerce.Common.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace E_Commerce.CustomerManagement.Api.Endpoints;
@@ -54,13 +56,13 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> GetCustomersAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] IQueryDispatcher queryDispatcher,
         [FromQuery] int page = 1,
         [FromQuery] int limit = 20,
         [FromQuery] string? search = null)
     {
         var query = new GetCustomersQuery(page, limit, search);
-        var result = await mediator.Send(query);
+        var result = await queryDispatcher.DispatchAsync<GetCustomersQuery, List<CustomerResponse>>(query);
 
         return result.IsSuccess 
             ? Results.Ok(result.Value)
@@ -68,11 +70,11 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> GetCustomerByIdAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] IQueryDispatcher queryDispatcher,
         [FromRoute] Guid id)
     {
         var query = new GetCustomerByIdQuery(id);
-        var result = await mediator.Send(query);
+        var result = await queryDispatcher.DispatchAsync<GetCustomerByIdQuery, CustomerResponse>(query);
 
         return result.IsSuccess
             ? Results.Ok(result.Value)
@@ -80,7 +82,7 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> CreateCustomerAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] ICommandDispatcher commandDispatcher,
         [FromBody] CreateCustomerRequest request,
         HttpContext context)
     {
@@ -95,7 +97,7 @@ public static class CustomerEndpoints
             request.LastName,
             request.DateOfBirth);
 
-        var result = await mediator.Send(command);
+        var result = await commandDispatcher.DispatchAsync<CreateCustomerCommand, CustomerId>(command);
 
         return result.IsSuccess
             ? Results.Created($"/api/v1/customers/{result.Value}", result.Value)
@@ -103,7 +105,7 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> UpdateCustomerAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] ICommandDispatcher commandDispatcher,
         [FromRoute] Guid id,
         [FromBody] UpdateCustomerRequest request)
     {
@@ -113,7 +115,7 @@ public static class CustomerEndpoints
             request.LastName,
             request.DateOfBirth);
 
-        var result = await mediator.Send(command);
+        var result = await commandDispatcher.DispatchAsync<UpdateCustomerCommand>(command);
 
         return result.IsSuccess
             ? Results.NoContent()
@@ -121,11 +123,11 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> DeleteCustomerAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] ICommandDispatcher commandDispatcher,
         [FromRoute] Guid id)
     {
         var command = new DeleteCustomerCommand(CustomerId.Create(id));
-        var result = await mediator.Send(command);
+        var result = await commandDispatcher.DispatchAsync<DeleteCustomerCommand>(command);
 
         return result.IsSuccess
             ? Results.NoContent()
@@ -133,11 +135,11 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> GetCustomerAddressesAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] IQueryDispatcher queryDispatcher,
         [FromRoute] Guid id)
     {
         var query = new GetCustomerAddressesQuery(CustomerId.Create(id));
-        var result = await mediator.Send(query);
+        var result = await queryDispatcher.DispatchAsync<GetCustomerAddressesQuery, List<AddressResponse>>(query);
 
         return result.IsSuccess
             ? Results.Ok(result.Value)
@@ -145,7 +147,7 @@ public static class CustomerEndpoints
     }
 
     private static async Task<IResult> AddCustomerAddressAsync(
-        [FromServices] IMediator mediator,
+        [FromServices] ICommandDispatcher commandDispatcher,
         [FromRoute] Guid id,
         [FromBody] AddAddressRequest request)
     {
@@ -157,7 +159,7 @@ public static class CustomerEndpoints
             request.Country,
             request.IsDefault);
 
-        var result = await mediator.Send(command);
+        var result = await commandDispatcher.DispatchAsync<AddCustomerAddressCommand, Guid>(command);
 
         return result.IsSuccess
             ? Results.Created($"/api/v1/customers/{id}/addresses/{result.Value}", result.Value)

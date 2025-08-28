@@ -1,9 +1,9 @@
-using E_Commerce.Common.Infrastructure.Persistence;
-using E_Commerce.Common.Infrastructure.Services;
-using E_Commerce.Common.Infrastructure.Messaging;
+using E_Commerce.Common.Persistence.DbContext;
+using E_Commerce.Common.Persistence.Services;
+using E_Commerce.Common.Messaging.Abstractions;
+using E_Commerce.Common.Application.Services;
 using E_Commerce.CustomerManagement.Domain.Entities;
 using E_Commerce.CustomerManagement.Infrastructure.Persistence.Configurations;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace E_Commerce.CustomerManagement.Infrastructure.Persistence;
@@ -15,9 +15,9 @@ public class CustomerDbContext : BaseDbContext
     public CustomerDbContext(
         DbContextOptions<CustomerDbContext> options, 
         ITenantService tenantService, 
-        IPublisher publisher,
+        IDomainEventPublisher domainEventPublisher,
         IMessageBroker messageBroker)
-        : base(options, tenantService, publisher, messageBroker)
+        : base(options, tenantService, domainEventPublisher, messageBroker)
     {
     }
 

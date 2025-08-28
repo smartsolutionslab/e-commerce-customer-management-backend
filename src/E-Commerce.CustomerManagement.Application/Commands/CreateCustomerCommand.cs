@@ -1,4 +1,4 @@
-﻿using E_Commerce.Common.Application.Abstractions;
+using E_Commerce.Common.Application.Abstractions;
 using E_Commerce.Common.Domain.ValueObjects;
 using E_Commerce.CustomerManagement.Domain.ValueObjects;
 

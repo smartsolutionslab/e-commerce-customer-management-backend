@@ -1,5 +1,5 @@
 using E_Commerce.Common.Domain.ValueObjects;
-using E_Commerce.Common.Infrastructure.Services;
+using E_Commerce.Common.Persistence.Services;
 
 namespace E_Commerce.CustomerManagement.Api.Middleware;
 

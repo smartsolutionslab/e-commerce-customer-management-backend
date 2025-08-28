@@ -1,4 +1,5 @@
 using E_Commerce.Common.Api.Extensions;
+using E_Commerce.Common.Persistence.Extensions;
 using E_Commerce.CustomerManagement.Api.Endpoints;
 using E_Commerce.CustomerManagement.Api.Middleware;
 using E_Commerce.CustomerManagement.Infrastructure.Extensions;
@@ -7,12 +8,8 @@ using CommonApi = E_Commerce.Common.Api.Extensions.ServiceCollectionExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Common services
-builder.Services.AddCommonServices();
-builder.Services.AddMultiTenancy();
 CommonApi.AddApiVersioning(builder.Services);
 
-// Customer management specific services (includes health checks)
 builder.Services.AddCustomerManagementInfrastructure(builder.Configuration);
 
 // API documentation

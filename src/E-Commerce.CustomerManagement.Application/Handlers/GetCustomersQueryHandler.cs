@@ -3,27 +3,20 @@ using E_Commerce.CustomerManagement.Application.DTOs;
 using E_Commerce.CustomerManagement.Application.Interfaces;
 using E_Commerce.CustomerManagement.Application.Queries;
 using E_Commerce.CustomerManagement.Domain.Enums;
-using MediatR;
 
 namespace E_Commerce.CustomerManagement.Application.Handlers;
 
-public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, Result<List<CustomerResponse>>>
+public class GetCustomersQueryHandler(ICustomerRepository customerRepository)
+    : IQueryHandler<GetCustomersQuery, List<CustomerResponse>>
 {
-    private readonly ICustomerRepository _customerRepository;
-
-    public GetCustomersQueryHandler(ICustomerRepository customerRepository)
-    {
-        _customerRepository = customerRepository;
-    }
-
-    public async Task<Result<List<CustomerResponse>>> Handle(GetCustomersQuery request, CancellationToken cancellationToken)
+    public async Task<Result<List<CustomerResponse>>> HandleAsync(GetCustomersQuery query, CancellationToken cancellationToken = default)
     {
         try
         {
-            var customers = await _customerRepository.GetPagedAsync(
-                request.Page, 
-                request.Limit, 
-                request.Search, 
+            var customers = await customerRepository.GetPagedAsync(
+                query.Page, 
+                query.Limit, 
+                query.Search, 
                 cancellationToken);
 
             var customerResponses = customers.Select(customer => new CustomerResponse(

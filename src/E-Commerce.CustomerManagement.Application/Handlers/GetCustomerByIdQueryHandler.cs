@@ -4,25 +4,18 @@ using E_Commerce.CustomerManagement.Application.Interfaces;
 using E_Commerce.CustomerManagement.Application.Queries;
 using E_Commerce.CustomerManagement.Domain.Enums;
 using E_Commerce.CustomerManagement.Domain.ValueObjects;
-using MediatR;
 
 namespace E_Commerce.CustomerManagement.Application.Handlers;
 
-public class GetCustomerByIdQueryHandler : IRequestHandler<GetCustomerByIdQuery, Result<CustomerResponse>>
+public class GetCustomerByIdQueryHandler(ICustomerRepository customerRepository)
+    : IQueryHandler<GetCustomerByIdQuery, CustomerResponse>
 {
-    private readonly ICustomerRepository _customerRepository;
-
-    public GetCustomerByIdQueryHandler(ICustomerRepository customerRepository)
-    {
-        _customerRepository = customerRepository;
-    }
-
-    public async Task<Result<CustomerResponse>> Handle(GetCustomerByIdQuery request, CancellationToken cancellationToken)
+    public async Task<Result<CustomerResponse>> HandleAsync(GetCustomerByIdQuery query, CancellationToken cancellationToken = default)
     {
         try
         {
-            var customerId = CustomerId.Create(request.Id);
-            var customer = await _customerRepository.GetByIdAsync(customerId, cancellationToken);
+            var customerId = CustomerId.Create(query.Id);
+            var customer = await customerRepository.GetByIdAsync(customerId, cancellationToken);
 
             if (customer == null)
                 return Result.Failure<CustomerResponse>(new Error("Customer.NotFound", "Customer not found"));
