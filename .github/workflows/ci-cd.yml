@@ -57,7 +57,7 @@ jobs:
       run: dotnet build --no-restore --configuration Release
 
     - name: Warten (Fallback, falls Healthcheck nicht reicht)
-        run: |
+      run: |
           echo "Warte auf SQL Server..."
           for i in {1..30}; do
             /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "${{ secrets.MSSQL_SA_PASSWORD }}" -Q "SELECT 1" && break
