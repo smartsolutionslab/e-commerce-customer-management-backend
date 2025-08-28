@@ -25,8 +25,8 @@ jobs:
           - 1433:1433
         options: >-
           --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Password123! -Q 'SELECT 1'"
-          --health-interval=10s
-          --health-timeout=5s
+          --health-interval=20s
+          --health-timeout=10s
           --health-retries=3
 
     steps:
