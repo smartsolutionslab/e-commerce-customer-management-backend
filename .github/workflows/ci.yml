@@ -6,9 +6,17 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: read
     
     steps:
     - uses: actions/checkout@v4
