@@ -5,7 +5,14 @@ EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG GITHUB_TOKEN
+ARG GITHUB_ACTOR
 WORKDIR /src
+
+# Add GitHub Packages source with authentication
+RUN if [ ! -z "$GITHUB_TOKEN" ] && [ ! -z "$GITHUB_ACTOR" ]; then \
+    dotnet nuget add source --username "$GITHUB_ACTOR" --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/$GITHUB_ACTOR/index.json"; \
+    fi
 
 # Copy project files
 COPY ["src/E-Commerce.CustomerManagement.Api/E-Commerce.CustomerManagement.Api.csproj", "src/E-Commerce.CustomerManagement.Api/"]
